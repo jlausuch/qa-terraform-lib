@@ -22,8 +22,10 @@ class SimpleTest(TrfmTestCase):
 
         # Transfering a file from a VM
         vm1.transfer_file(remote_file_path='/etc/resolv.conf',
-                          local_file_path='/root/test.resolv.conf',
+                          local_file_path=self.env.workdir / 'resolv.conf',
                           type='get')
+        with open(self.env.workdir / 'resolv.conf', 'r') as f:
+            logger.success("Got file: {}".format(f.read()))
 
         # Transfer file to a VM
         vm1.transfer_file(remote_file_path='/root/test_file',

@@ -23,6 +23,7 @@ import shutil
 import string
 import sys
 import time
+from pathlib import Path
 
 from qatrfm.domain import Domain
 from qatrfm.utils.logger import QaTrfmLogger
@@ -32,10 +33,10 @@ from qatrfm.utils import libutils
 class TerraformEnv(object):
 
     logger = QaTrfmLogger.getQatrfmLogger(__name__)
-    BASEDIR = '/root/terraform/'
 
     def __init__(self, image, tf_file=None, num_domains=1,
-                 cores=1, ram=1024, snapshots=False):
+                 cores=1, ram=1024, snapshots=False,
+                 base_dir='./qatrfm_working'):
         """Initialize Terraform Environment object."""
         self.image = image
         if (not os.path.isfile(self.image)):
@@ -58,11 +59,11 @@ class TerraformEnv(object):
         self.snapshots = snapshots
         letters = string.ascii_lowercase
         self.basename = ''.join(random.choice(letters) for i in range(10))
-        self.workdir = self.BASEDIR + self.basename
+        self.workdir = Path(base_dir) / self.basename
+        self.workdir = Path(self.workdir.resolve())
         os.makedirs(self.workdir)
         self.logger.debug("Using working directory {}".format(self.workdir))
-        shutil.copy(self.tf_file, self.workdir + '/env.tf')
-        os.chdir(self.workdir)
+        shutil.copy(self.tf_file, self.workdir / 'env.tf')
         self.domains = []
         self.net_octet = self.get_network_octet()
         self.logger.debug("Using network 10.{}.0.0/24".format(self.net_octet))
@@ -90,8 +91,7 @@ class TerraformEnv(object):
             raise Exception("Cannot find available network range")
         return x
 
-    @staticmethod
-    def get_domains():
+    def get_domains(self):
         """
         Return an array of Domain objects
 
@@ -99,11 +99,11 @@ class TerraformEnv(object):
         """
         domains = []
         cmd = "terraform output -json domain_names"
-        [ret, output] = libutils.execute_bash_cmd(cmd)
+        [ret, output] = libutils.execute_bash_cmd(cmd, cwd=self.workdir)
         domain_names = json.loads(output)['value']
 
         cmd = "terraform output -json domain_ips"
-        [ret, output] = libutils.execute_bash_cmd(cmd)
+        [ret, output] = libutils.execute_bash_cmd(cmd, cwd=self.workdir)
         domain_ips = json.loads(output)['value']
 
         # format of domain_names: ['name1', 'name2']
@@ -135,7 +135,7 @@ class TerraformEnv(object):
             cmd = 'terraform init'
             if ('LOG_COLORS' not in os.environ):
                 cmd = ("{} -no-color".format(cmd))
-            [ret, output] = libutils.execute_bash_cmd(cmd)
+            [ret, output] = libutils.execute_bash_cmd(cmd, cwd=self.workdir)
         except (libutils.TrfmCommandFailed, libutils.TrfmCommandTimeout) as e:
             self.logger.error(e)
             self.clean(remove_terraform_env=False)
@@ -153,7 +153,8 @@ class TerraformEnv(object):
                           self.cores, self.ram, self.num_domains))
             if ('LOG_COLORS' not in os.environ):
                 cmd = ("{} -no-color".format(cmd))
-            [ret, output] = libutils.execute_bash_cmd(cmd, timeout=400)
+            [ret, output] = libutils.execute_bash_cmd(cmd, timeout=400,
+                                                      cwd=self.workdir)
         except (libutils.TrfmCommandFailed, libutils.TrfmCommandTimeout) as e:
             self.logger.error(e)
             self.clean()
@@ -215,7 +216,8 @@ class TerraformEnv(object):
             if ('LOG_COLORS' not in os.environ):
                 cmd = ("{} -no-color".format(cmd))
             try:
-                [ret, output] = libutils.execute_bash_cmd(cmd)
+                [ret, output] = libutils.execute_bash_cmd(cmd,
+                                                          cwd=self.workdir)
             except (libutils.TrfmCommandFailed,
                     libutils.TrfmCommandTimeout) as e:
                 self.logger.error(e)

@@ -58,7 +58,11 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('--no-clean', 'no_clean', is_flag=True,
               help="Don't clean the environment when the tests finish. "
               "This is useful for debug and troubleshooting.")
-def cli(test, path, image, num_domains, cores, ram, snapshots, no_clean):
+@click.option('--base-working-dir', default='/root/terraform',
+              help='Specify base folder for working directory. This folder'
+              'need write permissions')
+def cli(test, path, image, num_domains, cores, ram, snapshots, no_clean,
+        base_working_dir):
     """ Create a terraform environment and run the test(s)"""
 
     logger = QaTrfmLogger.getQatrfmLogger(__name__)
@@ -69,10 +73,11 @@ def cli(test, path, image, num_domains, cores, ram, snapshots, no_clean):
     for file in os.listdir(basedir):
         if file.endswith(".tf"):
             tf_file = os.path.join(basedir, file)
-    env = TerraformEnv(image=image,
+    env = TerraformEnv(image=os.path.abspath(image),
                        tf_file=tf_file,
                        num_domains=num_domains,
-                       snapshots=snapshots)
+                       snapshots=snapshots,
+                       base_dir=base_working_dir)
 
     spec = importlib.util.spec_from_file_location(filename, path)
     module = importlib.util.module_from_spec(spec)
