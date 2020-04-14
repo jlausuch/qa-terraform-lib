@@ -14,6 +14,7 @@ It defines a specific format of the log messages.
 """
 
 import logging
+import sys
 
 
 class QaTrfmLogger(logging.Logger):
@@ -62,7 +63,11 @@ class QaTrfmLogger(logging.Logger):
     @staticmethod
     def getQatrfmLogger(name):
         logging.setLoggerClass(QaTrfmLogger)
-        return logging.getLogger(name)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.DEBUG)
+        logger = logging.getLogger(name)
+        logger.addHandler(handler)
+        return logger
 
 
 def init_logging(level, colors):
